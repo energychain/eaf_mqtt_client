@@ -2,17 +2,14 @@ const mqtt = require('mqtt');
 const CONNECT_URL = "mqtt://test.mosquitto.org:1883/";
 const METERS = {
     MQTT1:{
-        meterId: "mqtt1-test",
         topic:"revspace/sensors/power/L1/total",
         parser:function(message) { return message.substring(0,message.indexOf('.')) * 1; }
     },
     MQTT2:{
-        meterId: "mqtt2-test",
         topic:"revspace/sensors/power/L2/total",
         parser:function(message) { return message.substring(0,message.indexOf('.')) * 1; }
     },
     MQTT3:{
-        meterId: "mqtt3-test",
         topic:"revspace/sensors/power/L3/total",
         parser:function(message) { return message.substring(0,message.indexOf('.')) * 1; }
     }
