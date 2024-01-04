@@ -1,0 +1,48 @@
+{
+  "name": "eaf_mqtt_client",
+  "version": "0.5.0",
+  "description": "MQTT Client Aggregator for STROMDAO EAF",
+  "scripts": {
+    "dev": "moleculer-runner --hot services/**/*.service.js",
+    "start": "moleculer-runner",
+    "cli": "moleculer connect NATS",
+    "ci": "jest --watch",
+    "test": "jest --coverage",
+    "dc:up": "docker-compose up --build -d",
+    "dc:logs": "docker-compose logs -f",
+    "dc:down": "docker-compose down"
+  },
+  "keywords": [
+    "microservices",
+    "moleculer",
+    "stromdao",
+    "eaf",
+    "mqtt",
+    "metering",
+    "smartmeter"
+  ],
+  "author": "STROMDAO GmbH <dev@stromdao.com>",
+  "devDependencies": {
+    "jest": "^27.5.1",
+    "jest-cli": "^27.5.1",
+    "moleculer-repl": "^0.7.3"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "moleculer": "^0.14.26",
+    "moleculer-web": "^0.10.4",
+    "mqtt": "^5.3.4",
+    "nats": "^2.7.1"
+  },
+  "engines": {
+    "node": ">= 16.x.x"
+  },
+  "jest": {
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "rootDir": "./services",
+    "roots": [
+      "../test"
+    ]
+  }
+}
