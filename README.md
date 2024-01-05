@@ -1,22 +1,22 @@
 [![STROMDAO logo](https://static.corrently.cloud/stromdao_988.png)](https://stromdao.de/)
 
 # eaf_mqtt_client
-MQTT client to get meter readings for dynamic tariffs in [STROMDAO EAF](https://github.com/energychain/STROMDAO_EAFs)
+The eaf_mqtt_client script is an extension to the [STROMDAO Energy Application Framework]((https://github.com/energychain/STROMDAO_EAFs)) that allows utilities to process meter readings from their MQTT Broker directly in STROMDAO EAF.
 
 ## Usage
-Start the project with `npm run dev` command. 
+Start the project with `npm start` command. 
 After starting, open the http://localhost:3101/ URL in your browser. 
 On the welcome page you can test the generated services via API Gateway and check the nodes & services.
 
-## Services
-- **api**: API Gateway services
-- **mqttclient**: Sample service with `hello` and `welcome` actions.
+Specify MQTT_URL in `.env`.
 
+## Subscribed topics
+The script subscribes to the topic `stromdao-eaf/metering/updateReading/#`.
 
-## Useful links
+When a new message is published to a subtopic like `stromdao-eaf/metering/updateReading/MyMeter``, the published value is forwarded to the [metering.updateReading](https://eaf-metering.corrently.cloud/html/docs/index.html#!/MeteringApi#apiReadingPost) service of STROMDAO EAF, where MyMeter is used as the meterId.
 
-* Moleculer website: https://moleculer.services/
-* Moleculer Documentation: https://moleculer.services/docs/0.14/
+## Published topics
+In addition to forwarding meter readings, the script also publishes electricity prices from the STROMDAO EAF every 5 minutes to the topics below `stromdao-eaf/tariff/`
 
 ## NPM scripts
 

@@ -1,5 +1,8 @@
 "use strict";
-const MQTTClient = require("../mqttclient.config");
+const MQTTDispatcher = require("../mqttclient");
+const Cron = require("@r2d2bzh/moleculer-cron");
+
+let masterconnection = null;
 
 /**
  * @typedef {import('moleculer').ServiceSchema} ServiceSchema Moleculer's Service Schema
@@ -7,10 +10,11 @@ const MQTTClient = require("../mqttclient.config");
  */
 
 /** @type {ServiceSchema} */
-let connection = null;
 
 module.exports = {
 	name: "mqttclient",
+
+	mixins: [Cron],
 
 	/**
 	 * Settings
@@ -24,6 +28,32 @@ module.exports = {
 	 */
 	dependencies: [],
 
+	/** 
+	 * Cron Jobs
+	 */
+	crons: [
+        {
+            name: "Publish Price Info",
+            cronTime: '00 */5 * * *',
+            onTick: async function() {
+				let forecast = await this.call("tariff.prices");
+				for(let i=0;i<forecast.length;i++) {
+					masterconnection.publish("stromdao-eaf/tariff/"+forecast[i].time+"/epoch", forecast[i].epoch);
+					masterconnection.publish("stromdao-eaf/tariff/"+forecast[i].time+"/price", forecast[i].price);
+					masterconnection.publish("stromdao-eaf/tariff/"+forecast[i].time+"/jwt", forecast[i].jwt);
+				}
+				masterconnection.publish("stromdao-eaf/tariff/now/time", forecast[0].time);
+				masterconnection.publish("stromdao-eaf/tariff/now/epoch", forecast[0].epoch);
+				masterconnection.publish("stromdao-eaf/tariff/now/price", forecast[0].price);
+				masterconnection.publish("stromdao-eaf/tariff/now/jwt", forecast[0].jwt);
+            },
+            runOnInit: function() {
+                console.log("Publish Price Info");
+            },
+            manualStart: false,
+            timeZone: 'UTC'
+        }
+	],
 	/**
 	 * Actions
 	 */
@@ -49,7 +79,7 @@ module.exports = {
 	 * Events
 	 */
 	events: {
-		"mqtt.message"(ctx) {
+		"mqtt.updateReading"(ctx) {
 			// Handle a bit of Rate Limiting
 			if(typeof this.rateLimit == 'undefined') this.rateLimit = {};
 
@@ -58,7 +88,7 @@ module.exports = {
 					return;
 				}			
 			}
-			ctx.call("metering.updateReading", {meterId:ctx.params.meterId,reading:ctx.params.reading,time:new Date().getTime()});
+			ctx.call("metering.updateReading", {meterId:ctx.params.meterId,reading:ctx.params.value * 1,time:new Date().getTime()});
 			this.rateLimit[ctx.params.meterId] = new Date().getTime();
         }
 	},
@@ -80,19 +110,24 @@ module.exports = {
 	 * Service started lifecycle event handler
 	 */
 	async started(ctx) {
-		connection = await MQTTClient.connect();
-		const instance = this;
-	
-		for (const [key, value] of Object.entries(connection.meters)) {
-			value.forward = function(meter, value) {
-				instance.broker.emit("mqtt.message", {meterId:meter,reading:value}, ["mqttclient"]);
-			}
+		
+		if(typeof process.env.MQTT_URL == 'undefined') {
+			throw new Error("MQTT_URL not defined in .env file");
 		}
-	},
 
-	/**
-	 * Service stopped lifecycle event handler
-	 */
+		masterconnection =  new MQTTDispatcher(process.env.MQTT_URL);
+		
+		const instance = this;
+
+		masterconnection.subscribe('stromdao-eaf/metering/updateReading/#',async function (receivedTopic, message) {
+				const parts = receivedTopic.split('/');
+				if (parts.length !== 4 || parts[0] !== 'stromdao-eaf' || parts[1] !== 'metering') {
+				  console.error(`Invalid topic format: ${receivedTopic}`);
+				} else {
+					instance.broker.emit("mqtt."+parts[2], {meterId:parts[3],value: 1 * message.toString() }, ["mqttclient"]);
+				}
+		});
+	},
 	async stopped() {
 
 	}
