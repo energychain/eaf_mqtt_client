@@ -1,6 +1,7 @@
 "use strict";
 const MQTTDispatcher = require("../mqttclient");
 const Cron = require("@r2d2bzh/moleculer-cron");
+const RATE_LIMIT = 5000;
 
 let masterconnection = null;
 
@@ -36,6 +37,7 @@ module.exports = {
             name: "Publish Price Info",
             cronTime: '00 */5 * * *',
             onTick: async function() {
+				console.log("Publish Price Info");
 				let forecast = await this.call("tariff.prices");
 				for(let i=0;i<forecast.length;i++) {
 					masterconnection.publish("stromdao-eaf/tariff/"+forecast[i].time+"/epoch", forecast[i].epoch);
@@ -48,7 +50,7 @@ module.exports = {
 				masterconnection.publish("stromdao-eaf/tariff/now/jwt", forecast[0].jwt);
             },
             runOnInit: function() {
-                console.log("Publish Price Info");
+               
             },
             manualStart: false,
             timeZone: 'UTC'
@@ -58,19 +60,49 @@ module.exports = {
 	 * Actions
 	 */
 	actions: {
-
-		/**
-		 * Say a 'Hello' action.
-		 *
-		 * @returns
-		 */
-		hello: {
+		emqxApiPost: {
+			rest: {
+				method: "POST",
+				path: "/emqxApiPost"
+			},
+			async handler(ctx) {
+				// This action exists to reduce X-Domain policy issues during setup
+				const axios = require("axios");
+				const res = await axios.post(ctx.params.restapi,ctx.params.payload, {auth: {
+					username: ctx.params.apikey,
+					password: ctx.params.apisecret
+				  }}
+				);
+				return res.data;
+			}
+		},
+		info: {
 			rest: {
 				method: "GET",
-				path: "/hello"
+				path: "/info"
 			},
 			async handler() {
-				return "Hello Moleculer";
+				return {
+					MQTT_URL: process.env.MQTT_URL
+				}
+			}
+		},
+		readings: {
+			rest: {
+				method: "GET",
+				path: "/readings"
+			},
+			async handler() {
+				return this.readingsLog;
+			}
+		},
+		processed: {
+			rest: {
+				method: "GET",
+				path: "/processed"
+			},
+			async handler() {
+				return this.processedLog;
 			}
 		}
 	},
@@ -79,16 +111,23 @@ module.exports = {
 	 * Events
 	 */
 	events: {
-		"mqtt.updateReading"(ctx) {
+		"mqtt.updateReading": async (ctx) => {
 			// Handle a bit of Rate Limiting
 			if(typeof this.rateLimit == 'undefined') this.rateLimit = {};
 
 			if(typeof this.rateLimit[ctx.params.meterId] !== 'undefined') {
-				if((new Date().getTime() - this.rateLimit[ctx.params.meterId]) < 300000) {
+				if((new Date().getTime() - this.rateLimit[ctx.params.meterId]) < RATE_LIMIT) {
+					ctx.service.logReading({meterId:ctx.params.meterId,reading:ctx.params.value * 1,processed:"rate limit"});
 					return;
 				}			
 			}
-			ctx.call("metering.updateReading", {meterId:ctx.params.meterId,reading:ctx.params.value * 1,time:new Date().getTime()});
+			const result = await ctx.call("metering.updateReading", {meterId:ctx.params.meterId,reading:ctx.params.value * 1,time:new Date().getTime()});
+			
+			ctx.service.logReading(result);
+			if(result.processed) {
+				ctx.service.logProcessed(result);
+			}
+			ctx.service.logReading({meterId:ctx.params.meterId,reading:ctx.params.value * 1,processed:result.processed,debug:result.debug});
 			this.rateLimit[ctx.params.meterId] = new Date().getTime();
         }
 	},
@@ -97,6 +136,38 @@ module.exports = {
 	 * Methods
 	 */
 	methods: {
+		logReading: {
+			async handler(msg) {
+				if(typeof this.readingsLog =='undefined') this.readingsLog = [];
+
+				this.readingsLog = this.readingsLog.filter(element => element.msg.meterId !== msg.meterId);
+
+				if (this.readingsLog >= 10) {
+					this.readingsLog.shift();
+				}
+
+				this.readingsLog.push({
+					time: new Date().getTime(),
+					msg: msg
+				});
+			}
+		},
+		logProcessed: {
+			async handler(msg) {
+				if(typeof this.processedLog =='undefined') this.processedLog = [];
+				
+				this.processedLog = this.processedLog.filter(element => ((element.msg.meterId !== msg.meterId) && (element.msg.reading !== msg.reading)));
+
+				if (this.processedLog >= 10) {
+					this.processedLog.shift();
+				}
+
+				this.processedLog.push({
+					time: new Date().getTime(),
+					msg: msg
+				});
+			}
+		}
 	},
 
 	/**

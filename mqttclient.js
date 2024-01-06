@@ -11,8 +11,18 @@ class MqttClient {
   }
 
   connect() {
-    this.client = mqtt.connect(this.options);
+    if(typeof this.reconnectTimeout == 'undefined') {
+      this.reconnectTimeout = new Date().getTime();
+    }
+    if(this.reconnectTimeout > new Date().getTime() - 5000) {
+      this.client = {
+        connected:false
+      };
+      return;
+    }
 
+    this.client = mqtt.connect(this.options);
+    this.reconnectTimeout = new Date().getTime();
     this.client.on('connect', () => {
       console.log('Connected to MQTT server');
       this.topics.forEach((topic) => {
@@ -25,14 +35,14 @@ class MqttClient {
       console.log('Error connecting to MQTT server:', error);
       setTimeout(() => {
         this.connect();
-      }, 1000);
+      }, 5000);
     });
 
     this.client.on('close', () => {
       console.log('MQTT connection closed');
       setTimeout(() => {
-        this.connect();
-      }, 1000);
+        // this.connect();
+      }, 60000);
     });
   }
 

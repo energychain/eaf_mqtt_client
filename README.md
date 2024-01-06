@@ -1,14 +1,20 @@
 [![STROMDAO logo](https://static.corrently.cloud/stromdao_988.png)](https://stromdao.de/)
 
 # eaf_mqtt_client
-The eaf_mqtt_client script is an extension to the [STROMDAO Energy Application Framework]((https://github.com/energychain/STROMDAO_EAFs)) that allows utilities to process meter readings from their MQTT Broker directly in STROMDAO EAF.
+The primary purpose of the eaf_mqtt_client is to facilitate the secure exchange of energy data between utilities and their customers. By utilizing a self-hosted MQTT broker and connecting the [STROMDAO Energy Application Framework]((https://github.com/energychain/STROMDAO_EAFs)), utilities can provide a platform for customers to run energy-based applications and services. This enables customers to leverage their energy data to make informed decisions and optimize their energy consumption.
+
+
+## Introduction
+
 
 ## Usage
+Specify MQTT_URL in `.env`.
 Start the project with `npm start` command. 
 After starting, open the http://localhost:3101/ URL in your browser. 
-On the welcome page you can test the generated services via API Gateway and check the nodes & services.
+On the welcome page you could see the status of received readings via MQTT and forwarded (processed) readings to EAF.
 
-Specify MQTT_URL in `.env`.
+## Demo MQTT Broker
+Contact dev@stromdao.com to receive credentials.
 
 ## Subscribed topics
 The script subscribes to the topic `stromdao-eaf/metering/updateReading/#`.

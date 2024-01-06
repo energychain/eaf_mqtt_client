@@ -1,6 +1,6 @@
 {
   "name": "eaf_mqtt_client",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "MQTT Client Aggregator for STROMDAO EAF",
   "scripts": {
     "dev": "moleculer-runner --hot services/**/*.service.js",
@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@r2d2bzh/moleculer-cron": "^0.1.4",
+    "axios": "^1.6.5",
     "dotenv": "^16.3.1",
     "moleculer": "^0.14.26",
     "moleculer-web": "^0.10.4",
